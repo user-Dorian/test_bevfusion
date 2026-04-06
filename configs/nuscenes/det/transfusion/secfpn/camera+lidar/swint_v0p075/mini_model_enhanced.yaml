@@ -1,50 +1,11 @@
-# Mini Dataset Model Structure Improvement
-# Strategy: Improve model architecture while keeping training hyperparameters stable
-# Target: +2-3 mAP with same training settings as baseline
+# Mini Dataset Minimal Improvement
+# Only change vtransform add_depth_features=true
+# Keep everything else as default
 
 _base_: "convfuser.yaml"
 
-# ============================================================
-# Model Structure Improvements
-# ============================================================
-# Only safe improvements that don't break architecture compatibility
-
 model:
-  # 1. Enhanced Camera Backbone
   encoders:
     camera:
-      backbone:
-        embed_dims: 96
-        drop_path_rate: 0.1  # Reduced from 0.2 for better convergence
-
-      neck:
-        type: GeneralizedLSSFPN
-        in_channels: [192, 384, 768]
-        out_channels: 256
-        start_level: 0
-        num_outs: 3
-        norm_cfg:
-          type: GN
-          num_groups: 32
-          requires_grad: true
-
       vtransform:
-        type: DepthLSSTransform
-        in_channels: 256
-        out_channels: 80
-        image_size: [256, 704]
-        feature_size: [32, 88]
-        xbound: [-54.0, 54.0, 0.3]
-        ybound: [-54.0, 54.0, 0.3]
-        zbound: [-10.0, 10.0, 20.0]
-        dbound: [1.0, 60.0, 0.5]
-        downsample: 2
-        add_depth_features: true  # Enabled for better 3D perception
-        height_expand: true
-        point_feature_dims: 5
-        use_attention: true
-
-# Keep Training Hyperparameters SAME as Baseline
-# - optimizer.lr: 2.0e-4
-# - augment3d: default settings
-# - train_cfg: max_epochs=6
+        add_depth_features: true

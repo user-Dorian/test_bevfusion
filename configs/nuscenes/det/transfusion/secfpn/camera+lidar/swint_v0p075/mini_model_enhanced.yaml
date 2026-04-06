@@ -1,13 +1,13 @@
 # Mini Dataset Model Structure Improvement
 # Strategy: Improve model architecture while keeping training hyperparameters stable
-# Target: +3-5 mAP with same training settings as baseline
+# Target: +2-3 mAP with same training settings as baseline
 
 _base_: "convfuser.yaml"
 
 # ============================================================
 # Model Structure Improvements
 # ============================================================
-# All improvements are merged into a single model block
+# Only safe improvements that don't break architecture compatibility
 
 model:
   # 1. Enhanced Camera Backbone
@@ -43,23 +43,6 @@ model:
         height_expand: true
         point_feature_dims: 5
         use_attention: true
-
-    # 2. Enhanced LiDAR Backbone
-    lidar:
-      voxelize:
-        point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
-        voxel_size: [0.075, 0.075, 0.2]
-        max_voxels: [120000, 160000]
-
-      backbone:
-        sparse_shape: [1440, 1440, 41]
-        output_channels: 256  # Increased from 128
-        encoder_channels:
-          - [32, 32, 64]
-          - [64, 64, 128]
-          - [128, 128, 256]
-          - [256, 256]
-        block_type: basicblock
 
 # Keep Training Hyperparameters SAME as Baseline
 # - optimizer.lr: 2.0e-4

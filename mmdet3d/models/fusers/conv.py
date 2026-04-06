@@ -58,6 +58,8 @@ class ConvFuser(nn.Module):
             # Apply attention weights to features
             fused = fused * attention_weights
         
+        # Ensure we return a single tensor, not a list
+        assert isinstance(fused, torch.Tensor), f"Expected torch.Tensor, got {type(fused)}"
         return fused
 
 

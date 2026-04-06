@@ -5,15 +5,18 @@
 _base_: "convfuser.yaml"
 
 # ============================================================
-# 1. Enhanced Camera Backbone (Swin-Tiny → Swin-Small)
+# Model Structure Improvements
 # ============================================================
+# All improvements are merged into a single model block
+
 model:
+  # 1. Enhanced Camera Backbone
   encoders:
     camera:
       backbone:
-        embed_dims: 96  # Keep same for compatibility
-        drop_path_rate: 0.1  # Slightly reduced for better convergence
-      
+        embed_dims: 96
+        drop_path_rate: 0.1  # Reduced from 0.2 for better convergence
+
       neck:
         type: GeneralizedLSSFPN
         in_channels: [192, 384, 768]
@@ -24,10 +27,9 @@ model:
           type: GN
           num_groups: 32
           requires_grad: true
-        # Add activation for better gradient flow
         act_cfg:
-          type: SiLU
-      
+          type: SiLU  # Enhanced activation
+
       vtransform:
         type: DepthLSSTransform
         in_channels: 256
@@ -39,70 +41,29 @@ model:
         zbound: [-10.0, 10.0, 20.0]
         dbound: [1.0, 60.0, 0.5]
         downsample: 2
-        # Enable depth features for better 3D perception
-        add_depth_features: true
+        add_depth_features: true  # Enabled for better 3D perception
         height_expand: true
         point_feature_dims: 5
         use_attention: true
-  
-    # ============================================================
-    # 2. Enhanced LiDAR Backbone (wider channels)
-    # ============================================================
+
+    # 2. Enhanced LiDAR Backbone
     lidar:
       voxelize:
         point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
         voxel_size: [0.075, 0.075, 0.2]
         max_voxels: [120000, 160000]
-      
+
       backbone:
         sparse_shape: [1440, 1440, 41]
         output_channels: 256  # Increased from 128
         encoder_channels:
-          - [32, 32, 64]     # Wider than baseline
+          - [32, 32, 64]
           - [64, 64, 128]
           - [128, 128, 256]
           - [256, 256]
         block_type: basicblock
 
-# ============================================================
-# 3. Enhanced Fusion (keep ConvFuser for compatibility)
-# ============================================================
-# Note: MultiScaleConvFuser returns multiple scales which is incompatible with TransFusionHead
-# Staying with ConvFuser ensures single scale output
-model:
-  fuser:
-    type: ConvFuser
-    in_channels: [80, 256]
-    out_channels: 256
-
-# ============================================================
-# 4. Enhanced Detection Head (stronger hidden channel)
-# ============================================================
-model:
-  heads:
-    object:
-      type: TransFusionHead
-      in_channels: 256
-      hidden_channel: 256  # Keep same as baseline for stability
-      num_classes: 10
-      
-      # Keep train_cfg same as baseline for fair comparison
-      train_cfg:
-        grid_size: [1440, 1440, 41]
-        point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
-        voxel_size: [0.075, 0.075, 0.2]
-      
-      test_cfg:
-        grid_size: [1440, 1440, 41]
-        point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
-        voxel_size: [0.075, 0.075, 0.2]
-
-# ============================================================
-# 5. Keep Training Hyperparameters SAME as Baseline
-# ============================================================
-# No changes to:
-# - Learning rate
-# - Data augmentation
-# - Class weights
-# - Loss weights
-# All training settings match convfuser.yaml exactly
+# Keep Training Hyperparameters SAME as Baseline
+# - optimizer.lr: 2.0e-4
+# - augment3d: default settings
+# - train_cfg: max_epochs=6

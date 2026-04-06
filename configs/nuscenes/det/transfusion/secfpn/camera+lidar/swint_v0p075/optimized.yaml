@@ -2,7 +2,14 @@
 # Strategy: Keep model structure identical to baseline, only tune training dynamics
 # Target: Stable improvement without oscillation
 
-_base_: "convfuser.yaml"
+_base_: "default.yaml"
+
+model:
+  # Add ConvFuser (missing from default.yaml)
+  fuser:
+    type: ConvFuser
+    in_channels: [80, 256]
+    out_channels: 256
 
 # ============================================================
 # ONLY modify training hyperparameters - NO structural changes
@@ -20,7 +27,7 @@ lr_config:
   warmup_ratio: 0.1    # Lower initial LR ratio (was 0.333)
   min_lr_ratio: 0.05   # Higher final LR to prevent overfitting (was 0.001)
 
-# Gradient clipping for stability (use clip_grad not clip_grads)
+# Gradient clipping for stability
 clip_grad:
   max_norm: 35         # Clip gradients to prevent explosion
   norm_type: 2
@@ -30,6 +37,5 @@ clip_grad:
 # No changes to:
 # - encoders.camera.backbone (drop_path_rate stays 0.2)
 # - encoders.camera.vtransform (add_depth_features stays false)
-# - fuser (ConvFuser unchanged)
 # - heads (TransFusionHead unchanged)
 # ============================================================

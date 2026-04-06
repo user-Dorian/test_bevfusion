@@ -1,0 +1,46 @@
+# Mini Dataset Conservative Optimization
+# Target: Stable +2-3 mAP improvement with 6 epochs
+# Strategy: Small, proven improvements only
+
+_base_: "convfuser.yaml"
+
+# ============================================================
+# 1. Mild Learning Rate Adjustment
+# ============================================================
+optimizer:
+  lr: 2.5e-4  # Slightly increased from 2.0e-4
+
+lr_config:
+  policy: CosineAnnealing
+  warmup: linear
+  warmup_iters: 300  # More warmup for stability
+  warmup_ratio: 0.33333333
+  min_lr_ratio: 0.1  # Less aggressive decay
+
+# ============================================================
+# 2. Mild Regularization
+# ============================================================
+clip_grad:
+  max_norm: 35
+  norm_type: 2
+
+# ============================================================
+# 3. Conservative Data Augmentation
+# ============================================================
+augment3d:
+  scale: [0.9, 1.1]  # Conservative range
+  rotate: [-0.39269908, 0.39269908]  # ±22.5 degrees
+  translate: 0.5  # Moderate translation
+
+# ============================================================
+# 4. Training Schedule
+# ============================================================
+train_cfg:
+  max_epochs: 6
+  val_interval: 1
+
+# ============================================================
+# 5. Evaluation
+# ============================================================
+evaluation:
+  interval: 1

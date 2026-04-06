@@ -26,7 +26,7 @@ model:
 # ========== 训练策略 ==========
 # 保持官方稳定配置，不修改训练参数
 optimizer:
-  lr: 4e-4
+  lr: 0.0004
   weight_decay: 0.01
 
 lr_config:

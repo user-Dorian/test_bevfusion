@@ -1,10 +1,14 @@
 # Mini Dataset Minimal Improvement
-# Only change vtransform add_depth_features=true
-# Keep everything else as default
+# Add depth features and keep fuser
 
 _base_: "convfuser.yaml"
 
 model:
+  fuser:
+    type: ConvFuser
+    in_channels: [80, 256]
+    out_channels: 256
+  
   encoders:
     camera:
       vtransform:

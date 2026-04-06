@@ -12,13 +12,6 @@ optimizer:
   type: AdamW
   lr: 1.5e-4          # Slightly lower than baseline (2.0e-4) for stability
   weight_decay: 0.02   # Add mild regularization (baseline has none)
-  paramwise_options:
-    backbone:
-      lr_mult: 0.1     # Lower LR for pretrained backbone
-    vtransform:
-      lr_mult: 0.5     # Moderate LR for view transform
-    fuser:
-      lr_mult: 1.0     # Full LR for fusion layer (key component)
 
 lr_config:
   policy: CosineAnnealing
@@ -27,10 +20,10 @@ lr_config:
   warmup_ratio: 0.1    # Lower initial LR ratio (was 0.333)
   min_lr_ratio: 0.05   # Higher final LR to prevent overfitting (was 0.001)
 
-# Gradient clipping for stability
-clip_grads:
-  allow_unused_param: true
+# Gradient clipping for stability (use clip_grad not clip_grads)
+clip_grad:
   max_norm: 35         # Clip gradients to prevent explosion
+  norm_type: 2
 
 # ============================================================
 # Model structure: EXACTLY same as convfuser.yaml baseline

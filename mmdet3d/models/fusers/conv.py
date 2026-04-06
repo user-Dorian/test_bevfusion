@@ -11,17 +11,49 @@ __all__ = ["ConvFuser", "MultiScaleConvFuser"]
 
 @FUSERS.register_module()
 class ConvFuser(nn.Sequential):
-    def __init__(self, in_channels: List[int], out_channels: int) -> None:
+    def __init__(self, in_channels: List[int], out_channels: int, use_depth_attention: bool = True) -> None:
+        """ConvFuser with optional depth-guided attention for small object detection.
+        
+        Args:
+            in_channels: List of input channel numbers for each modality.
+            out_channels: Output channel number after fusion.
+            use_depth_attention: Whether to use depth-guided channel attention.
+                Default: True.
+        """
         self.in_channels = in_channels
         self.out_channels = out_channels
-        super().__init__(
+        self.use_depth_attention = use_depth_attention
+        
+        layers = [
             nn.Conv2d(sum(in_channels), out_channels, 3, padding=1, bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(True),
-        )
-
+        ]
+        
+        # Add depth-guided channel attention for small object enhancement
+        if use_depth_attention:
+            layers.extend([
+                nn.AdaptiveAvgPool2d(1),
+                nn.Conv2d(out_channels, out_channels // 16, 1, bias=False),
+                nn.ReLU(True),
+                nn.Conv2d(out_channels // 16, out_channels, 1, bias=False),
+                nn.Sigmoid(),
+            ])
+        
+        super().__init__(*layers)
+    
     def forward(self, inputs: List[torch.Tensor]) -> torch.Tensor:
-        return super().forward(torch.cat(inputs, dim=1))
+        fused = torch.cat(inputs, dim=1)
+        fused = self[:3](fused)  # Conv + BN + ReLU
+        
+        # Apply depth-guided attention if enabled
+        if self.use_depth_attention:
+            attention_weights = self[3:](fused)  # Attention module
+            # Clamp attention weights for numerical stability
+            attention_weights = torch.clamp(attention_weights, 0.1, 0.9)
+            fused = fused * attention_weights
+        
+        return fused
 
 
 @FUSERS.register_module()

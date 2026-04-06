@@ -1,0 +1,62 @@
+# 深度增强的小目标检测优化配置
+# 基于官方 convfuser.yaml，添加深度引导注意力机制
+# 适用于 Mini 数据集验证（6 轮训练）
+
+_base_: ./convfuser.yaml
+
+# ========== 模型配置 ==========
+model:
+  # 深度增强的 ConvFuser（添加深度引导注意力）
+  fuser:
+    type: ConvFuser
+    in_channels: [80, 256]
+    out_channels: 256
+    use_depth_attention: true  # ✅ 启用深度引导注意力
+  
+  # 深度增强的 DepthLSSTransform（已存在于 test_bevfusion）
+  encoders:
+    camera:
+      vtransform:
+        type: DepthLSSTransform
+        # ✅ 已配置：点云特征辅助深度估计
+        add_depth_features: true
+        point_feature_dims: 5
+        use_attention: true  # ✅ 已配置：SEBlock 注意力
+
+# ========== 训练策略 ==========
+# 保持官方稳定配置，不修改训练参数
+optimizer:
+  lr: 4e-4
+  weight_decay: 0.01
+
+lr_config:
+  policy: cyclic
+  warmup_iters: 500
+  warmup_ratio: 0.333
+  min_lr_ratio: 0.001
+
+# ========== 数据增强 ==========
+# 针对小目标的 Copy-Paste 增强
+data:
+  train:
+    pipeline:
+      - type: CopyPaste3D
+        classes: ['pedestrian', 'motorcycle', 'bicycle', 'traffic_cone']
+        max_num_pasted: 15  # 增加小目标样本
+        paste_probability: 0.7
+
+# ========== 检测头配置 ==========
+# 增加 proposals 数量，提升小目标覆盖率
+model:
+  heads:
+    object:
+      train_cfg:
+        num_proposals: 200  # 从 128 增加到 200
+
+# ========== 预期提升 ==========
+# 基线：mAP 0.308, NDS 0.374
+# 目标：mAP 0.34+ (+10%), NDS 0.40+ (+7%)
+# 小目标预期提升：
+#   - Motorcycle: 0.20 → 0.30+ (+50%)
+#   - Traffic Cone: 0.13 → 0.20+ (+54%)
+#   - Pedestrian: 0.61 → 0.68+ (+11%)

@@ -43,13 +43,16 @@ class DepthLSSTransform(BaseDepthTransform):
         zbound: Tuple[float, float, float],
         dbound: Tuple[float, float, float],
         downsample: int = 1,
-        use_points: str = 'lidar',
         depth_input: str = 'scalar',
         add_depth_features: bool = True,
         height_expand: bool = True,
         point_feature_dims: int = 5,
         use_attention: bool = True,
+        **kwargs,  # 接受额外参数（包括 use_points）以保证兼容性
     ) -> None:
+        # 从 kwargs 中获取 use_points，如果没有则使用默认值
+        use_points = kwargs.pop('use_points', 'lidar')
+        
         super().__init__(
             in_channels=in_channels,
             out_channels=out_channels,

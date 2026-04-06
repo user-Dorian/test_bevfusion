@@ -54,6 +54,7 @@ model:
         zbound: [-10.0, 10.0, 20.0]
         dbound: [1.0, 60.0, 0.5]
         downsample: 2
+        use_points: lidar  # 必需参数
         depth_input: scalar
         add_depth_features: true
         height_expand: true

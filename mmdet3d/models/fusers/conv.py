@@ -10,7 +10,7 @@ __all__ = ["ConvFuser", "MultiScaleConvFuser"]
 
 
 @FUSERS.register_module()
-class ConvFuser(nn.Sequential):
+class ConvFuser(nn.Module):
     def __init__(self, in_channels: List[int], out_channels: int, use_depth_attention: bool = True) -> None:
         """ConvFuser with optional depth-guided attention for small object detection.
         
@@ -20,43 +20,39 @@ class ConvFuser(nn.Sequential):
             use_depth_attention: Whether to use depth-guided channel attention.
                 Default: True.
         """
+        super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.use_depth_attention = use_depth_attention
         
-        layers = [
-            nn.Conv2d(sum(in_channels), out_channels, 3, padding=1, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(True),
-        ]
+        # Base fusion layers
+        self.fusion_conv = nn.Conv2d(sum(in_channels), out_channels, 3, padding=1, bias=False)
+        self.fusion_bn = nn.BatchNorm2d(out_channels)
+        self.fusion_relu = nn.ReLU(True)
         
-        # Add depth-guided channel attention for small object enhancement
+        # Depth-guided channel attention for small object enhancement
         if use_depth_attention:
-            layers.extend([
-                nn.AdaptiveAvgPool2d(1),
-                nn.Conv2d(out_channels, out_channels // 16, 1, bias=False),
-                nn.ReLU(True),
-                nn.Conv2d(out_channels // 16, out_channels, 1, bias=False),
-                nn.Sigmoid(),
-            ])
-        
-        super().__init__(*layers)
+            self.attention_pool = nn.AdaptiveAvgPool2d(1)
+            self.attention_reduce = nn.Conv2d(out_channels, out_channels // 16, 1, bias=False)
+            self.attention_relu = nn.ReLU(True)
+            self.attention_expand = nn.Conv2d(out_channels // 16, out_channels, 1, bias=False)
+            self.attention_sigmoid = nn.Sigmoid()
     
     def forward(self, inputs: List[torch.Tensor]) -> torch.Tensor:
         fused = torch.cat(inputs, dim=1)
-        # Apply first 3 layers: Conv + BN + ReLU
-        fused = self[0](fused)
-        fused = self[1](fused)
-        fused = self[2](fused)
+        # Apply base fusion layers
+        fused = self.fusion_conv(fused)
+        fused = self.fusion_bn(fused)
+        fused = self.fusion_relu(fused)
         
         # Apply depth-guided attention if enabled
         if self.use_depth_attention:
             # Calculate attention weights
-            attention_weights = self[3](fused)  # AdaptiveAvgPool2d
-            attention_weights = self[4](attention_weights)  # Conv2d (reduction)
-            attention_weights = self[5](attention_weights)  # ReLU
-            attention_weights = self[6](attention_weights)  # Conv2d (expansion)
-            attention_weights = self[7](attention_weights)  # Sigmoid
+            attention_weights = self.attention_pool(fused)
+            attention_weights = self.attention_reduce(attention_weights)
+            attention_weights = self.attention_relu(attention_weights)
+            attention_weights = self.attention_expand(attention_weights)
+            attention_weights = self.attention_sigmoid(attention_weights)
             # Clamp attention weights for numerical stability
             attention_weights = torch.clamp(attention_weights, 0.1, 0.9)
             # Apply attention weights to features

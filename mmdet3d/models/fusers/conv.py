@@ -48,7 +48,12 @@ class ConvFuser(nn.Sequential):
         
         # Apply depth-guided attention if enabled
         if self.use_depth_attention:
-            attention_weights = self[3:](fused)  # Attention module
+            # Manually apply each attention layer
+            attention_weights = self[3](fused)  # AdaptiveAvgPool2d
+            attention_weights = self[4](attention_weights)  # Conv2d (reduction)
+            attention_weights = self[5](attention_weights)  # ReLU
+            attention_weights = self[6](attention_weights)  # Conv2d (expansion)
+            attention_weights = self[7](attention_weights)  # Sigmoid
             # Clamp attention weights for numerical stability
             attention_weights = torch.clamp(attention_weights, 0.1, 0.9)
             fused = fused * attention_weights

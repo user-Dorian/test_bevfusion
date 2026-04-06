@@ -1,0 +1,24 @@
+# Optimized Configuration for BEVFusion Enhanced
+# Based on analysis of training data and model architecture
+# Target: Improve performance without causing training instability
+
+_base_: "default.yaml"
+
+model:
+  encoders:
+    camera:
+      backbone:
+        drop_path_rate: 0.1  # Reduced from 0.2 to reduce overfitting
+      
+      vtransform:
+        add_depth_features: true  # Enable depth features for better 3D perception
+        use_depth_classifier: true  # Add depth supervision
+        height_expand: true  # Maintain height expansion
+        point_feature_dims: 5  # Use 5D point features
+        use_attention: true  # Enable attention for better feature aggregation
+
+# Keep training parameters stable to avoid oscillation
+# - Learning rate: 2.0e-4 (from default)
+# - Cosine annealing: unchanged
+# - Warmup: unchanged
+# - Batch size: unchanged

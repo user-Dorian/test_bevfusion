@@ -44,11 +44,14 @@ class ConvFuser(nn.Sequential):
     
     def forward(self, inputs: List[torch.Tensor]) -> torch.Tensor:
         fused = torch.cat(inputs, dim=1)
-        fused = self[:3](fused)  # Conv + BN + ReLU
+        # Apply first 3 layers: Conv + BN + ReLU
+        fused = self[0](fused)
+        fused = self[1](fused)
+        fused = self[2](fused)
         
         # Apply depth-guided attention if enabled
         if self.use_depth_attention:
-            # Manually apply each attention layer
+            # Calculate attention weights
             attention_weights = self[3](fused)  # AdaptiveAvgPool2d
             attention_weights = self[4](attention_weights)  # Conv2d (reduction)
             attention_weights = self[5](attention_weights)  # ReLU
@@ -56,6 +59,7 @@ class ConvFuser(nn.Sequential):
             attention_weights = self[7](attention_weights)  # Sigmoid
             # Clamp attention weights for numerical stability
             attention_weights = torch.clamp(attention_weights, 0.1, 0.9)
+            # Apply attention weights to features
             fused = fused * attention_weights
         
         return fused

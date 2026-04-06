@@ -1,25 +1,42 @@
-# Optimized Configuration for BEVFusion Enhanced
-# Based on analysis of training data and model architecture
-# Target: Improve performance without causing training instability
+# Conservative Optimization - Training Hyperparameters Only
+# Strategy: Keep model structure identical to baseline, only tune training dynamics
+# Target: Stable improvement without oscillation
 
 _base_: "convfuser.yaml"
 
-model:
-  fuser:
-    type: ConvFuser
-    in_channels: [80, 256]
-    out_channels: 256
-  
-  encoders:
-    camera:
-      backbone:
-        drop_path_rate: 0.1  # Reduced from 0.2 to reduce overfitting
-      
-      vtransform:
-        add_depth_features: true
-        use_depth_classifier: true
-        height_expand: true
-        point_feature_dims: 5
-        use_attention: true
+# ============================================================
+# ONLY modify training hyperparameters - NO structural changes
+# ============================================================
 
-# Keep training parameters stable to avoid oscillation
+optimizer:
+  type: AdamW
+  lr: 1.5e-4          # Slightly lower than baseline (2.0e-4) for stability
+  weight_decay: 0.02   # Add mild regularization (baseline has none)
+  paramwise_options:
+    backbone:
+      lr_mult: 0.1     # Lower LR for pretrained backbone
+    vtransform:
+      lr_mult: 0.5     # Moderate LR for view transform
+    fuser:
+      lr_mult: 1.0     # Full LR for fusion layer (key component)
+
+lr_config:
+  policy: CosineAnnealing
+  warmup: linear
+  warmup_iters: 800    # Longer warmup (was 500) for stable start
+  warmup_ratio: 0.1    # Lower initial LR ratio (was 0.333)
+  min_lr_ratio: 0.05   # Higher final LR to prevent overfitting (was 0.001)
+
+# Gradient clipping for stability
+clip_grads:
+  allow_unused_param: true
+  max_norm: 35         # Clip gradients to prevent explosion
+
+# ============================================================
+# Model structure: EXACTLY same as convfuser.yaml baseline
+# No changes to:
+# - encoders.camera.backbone (drop_path_rate stays 0.2)
+# - encoders.camera.vtransform (add_depth_features stays false)
+# - fuser (ConvFuser unchanged)
+# - heads (TransFusionHead unchanged)
+# ============================================================

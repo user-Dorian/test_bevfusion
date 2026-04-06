@@ -1,8 +1,8 @@
 # 深度增强的小目标检测优化配置
-# 基于官方 convfuser.yaml，添加深度引导注意力机制
+# 基于官方 default.yaml，添加深度引导注意力机制
 # 适用于 Mini 数据集验证（6 轮训练）
 
-_base_: ./convfuser.yaml
+_base_: ./default.yaml
 
 # ========== 模型配置 ==========
 model:
@@ -22,18 +22,6 @@ model:
         add_depth_features: true
         point_feature_dims: 5
         use_attention: true  # ✅ 已配置：SEBlock 注意力
-
-# ========== 训练策略 ==========
-# 保持官方稳定配置，不修改训练参数
-optimizer:
-  lr: 0.0004
-  weight_decay: 0.01
-
-lr_config:
-  policy: cyclic
-  warmup_iters: 500
-  warmup_ratio: 0.333
-  min_lr_ratio: 0.001
 
 # ========== 数据增强 ==========
 # 针对小目标的 Copy-Paste 增强

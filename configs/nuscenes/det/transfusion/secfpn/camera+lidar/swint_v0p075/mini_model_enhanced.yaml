@@ -65,14 +65,15 @@ model:
         block_type: basicblock
 
 # ============================================================
-# 3. Enhanced Fusion (Multi-Scale with Attention)
+# 3. Enhanced Fusion (keep ConvFuser for compatibility)
 # ============================================================
+# Note: MultiScaleConvFuser returns multiple scales which is incompatible with TransFusionHead
+# Staying with ConvFuser ensures single scale output
 model:
   fuser:
-    type: MultiScaleConvFuser
+    type: ConvFuser
     in_channels: [80, 256]
     out_channels: 256
-    attention_ratio: 16  # Channel attention for feature selection
 
 # ============================================================
 # 4. Enhanced Detection Head (stronger hidden channel)

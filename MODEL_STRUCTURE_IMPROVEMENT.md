@@ -100,22 +100,22 @@ encoder_channels:
 - 提升点云特征表示
 - 与 camera 特征更好匹配（都是 256 通道）
 
-### 5. Fusion 改进
+### 4. Fusion 改进
 
-**改进点**: 使用 MultiScaleConvFuser
-
-```yaml
-fuser:
-  type: MultiScaleConvFuser  # 从 ConvFuser 升级
-  in_channels: [80, 256]
-  out_channels: 256
-  attention_ratio: 16  # 通道注意力
-```
+**保持**: ConvFuser（不改变）
 
 **原因**:
-- 多尺度特征融合
-- 通道注意力机制自动选择重要特征
-- 提升 camera-lidar 融合效果
+- `MultiScaleConvFuser` 返回多尺度特征（3 个 tensor）
+- `TransFusionHead` 期望单尺度特征（1 个 tensor）
+- 两者不兼容，强行使用会导致 assertion error
+- ConvFuser 已经足够满足融合需求
+
+**替代方案**:
+如果确实需要多尺度融合，需要同时修改 TransFusionHead：
+```python
+# 需要修改 head 的 forward 方法
+# 从 features[0] 改为 features[:3]
+```
 
 ## 📈 预期效果
 
@@ -124,8 +124,8 @@ fuser:
 | Camera Neck 激活 | +0.5-1% mAP | 低 |
 | VTransform 深度特征 | +1-2% mAP | 低 |
 | LiDAR Backbone 加宽 | +1-2% mAP | 中（显存增加） |
-| MultiScaleFuser | +0.5-1% mAP | 低 |
-| **总计** | **+3-6% mAP** | **可控** |
+| Camera Backbone drop_path | +0.5% mAP | 低 |
+| **总计** | **+3-5% mAP** | **可控** |
 
 ## ⚠️ 保持不变的部分
 

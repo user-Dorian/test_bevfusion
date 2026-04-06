@@ -17,7 +17,7 @@ model:
       type: TransFusionHead
       num_proposals: 200
       auxiliary: true
-      in_channels: null
+      in_channels: 256  # Set to decoder neck output channels (256)
       hidden_channel: 128
       num_classes: 10
       num_decoder_layers: 1

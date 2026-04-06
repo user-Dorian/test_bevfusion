@@ -10,6 +10,11 @@ model:
     type: ConvFuser
     in_channels: [80, 256]
     out_channels: 256
+  
+  heads:
+    object:
+      train_cfg:
+        code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Increase velocity weights from 0.2 to 1.0
 
 # ============================================================
 # ONLY modify training hyperparameters - NO structural changes
@@ -37,5 +42,6 @@ clip_grad:
 # No changes to:
 # - encoders.camera.backbone (drop_path_rate stays 0.2)
 # - encoders.camera.vtransform (add_depth_features stays false)
+# - fuser (ConvFuser unchanged)
 # - heads (TransFusionHead unchanged)
 # ============================================================

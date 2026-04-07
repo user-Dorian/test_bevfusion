@@ -33,36 +33,34 @@ model:
     out_channels: 256
     use_depth_attention: true
   
-  # decoder 配置（保持默认）
+  # decoder 配置（基于官方 transfusion 配置）
   decoder:
     backbone:
-      type: ResNet
-      depth: 101
-      num_stages: 4
-      out_indices: [0, 1, 2, 3]
-      frozen_stages: -1
+      type: SECOND
+      in_channels: 256
+      out_channels: [128, 256]
+      layer_nums: [5, 5]
+      layer_strides: [1, 2]
       norm_cfg:
         type: BN
-        requires_grad: false
-      norm_eval: true
-      style: pytorch
-      dcn:
-        type: DCN
-        deform_groups: 1
-        kernel_size: 3
-        modulation: true
-        padding: 1
+        eps: 1.0e-3
+        momentum: 0.01
+      conv_cfg:
+        type: Conv2d
         bias: false
-      stage_with_dcn:
-        - false
-        - true
-        - true
-        - true
     neck:
-      type: ChannelMappingEncoder
-      in_channels: [256, 512, 1024, 2048]
-      out_channels: 256
-      num_outs: 4
+      type: SECONDFPN
+      in_channels: [128, 256]
+      out_channels: [256, 256]
+      upsample_strides: [1, 2]
+      norm_cfg:
+        type: BN
+        eps: 1.0e-3
+        momentum: 0.01
+      upsample_cfg:
+        type: deconv
+        bias: false
+      use_conv_for_no_stride: true
   
   # heads 配置
   heads:

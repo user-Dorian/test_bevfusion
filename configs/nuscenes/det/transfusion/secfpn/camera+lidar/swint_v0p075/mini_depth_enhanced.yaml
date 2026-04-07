@@ -1,12 +1,12 @@
 # 深度增强的小目标检测优化配置
-# 基于官方 convfuser.yaml（已包含 fuser 配置），添加深度引导注意力机制
+# 基于官方 default.yaml，添加 ConvFuser 和深度引导注意力机制
 # 适用于 Mini 数据集验证（6 轮训练）
 
-_base_: ./convfuser.yaml
+_base_: ./default.yaml
 
 # ========== 模型配置 ==========
 model:
-  # 深度增强的 ConvFuser（覆盖基类配置，添加深度引导注意力）
+  # 添加 ConvFuser（带深度引导注意力）
   fuser:
     type: ConvFuser
     in_channels: [80, 256]

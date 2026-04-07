@@ -34,14 +34,14 @@ model:
     use_depth_attention: true
 
 # ========== 数据增强 ==========
-# 针对小目标的 Copy-Paste 增强
+# 针对小目标的 Copy-Paste 增强（优化版：降低强度，避免过度增强）
 data:
   train:
     pipeline:
       - type: CopyPaste3D
-        classes: ['pedestrian', 'motorcycle', 'bicycle', 'traffic_cone']
-        max_num_pasted: 15
-        paste_probability: 0.7
+        classes: ['pedestrian', 'motorcycle', 'bicycle']  # 移除 traffic_cone，避免干扰
+        max_num_pasted: 10  # 从 15 降到 10，避免过度拥挤
+        paste_probability: 0.5  # 从 0.7 降到 0.5，更稳定的训练
 
 # ========== 预期提升 ==========
 # 基线：mAP 0.308, NDS 0.374

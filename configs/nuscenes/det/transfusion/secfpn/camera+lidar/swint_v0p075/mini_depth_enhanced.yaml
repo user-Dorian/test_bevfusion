@@ -4,24 +4,100 @@
 
 _base_: ./default.yaml
 
-# ========== 模型配置 ==========
+# ========== 模型配置（完整定义，避免配置合并问题）==========
 model:
-  # 添加 ConvFuser（带深度引导注意力）
-  fuser:
-    type: ConvFuser
-    in_channels: [80, 256]
-    out_channels: 256
-    use_depth_attention: true  # ✅ 启用深度引导注意力
-  
-  # 深度增强的 DepthLSSTransform（已存在于 test_bevfusion）
+  # encoders 配置（保留 default.yaml 中的配置，只修改 vtransform）
   encoders:
     camera:
       vtransform:
         type: DepthLSSTransform
-        # ✅ 已配置：点云特征辅助深度估计
+        in_channels: 256
+        out_channels: 80
+        image_size: [256, 704]
+        feature_size: [32, 88]
+        xbound: [-54.0, 54.0, 0.3]
+        ybound: [-54.0, 54.0, 0.3]
+        zbound: [-10.0, 10.0, 20.0]
+        dbound: [1.0, 60.0, 0.5]
+        downsample: 2
+        depth_input: scalar
+        # ✅ 深度增强配置
         add_depth_features: true
         point_feature_dims: 5
-        use_attention: true  # ✅ 已配置：SEBlock 注意力
+        use_attention: true
+  
+  # ✅ 添加 ConvFuser（带深度引导注意力）
+  fuser:
+    type: ConvFuser
+    in_channels: [80, 256]
+    out_channels: 256
+    use_depth_attention: true
+  
+  # decoder 配置（保持默认）
+  decoder:
+    backbone:
+      type: ResNet
+      depth: 101
+      num_stages: 4
+      out_indices: [0, 1, 2, 3]
+      frozen_stages: -1
+      norm_cfg:
+        type: BN
+        requires_grad: false
+      norm_eval: true
+      style: pytorch
+      dcn:
+        type: DCN
+        deform_groups: 1
+        kernel_size: 3
+        modulation: true
+        padding: 1
+        bias: false
+      stage_with_dcn:
+        - false
+        - true
+        - true
+        - true
+    neck:
+      type: ChannelMappingEncoder
+      in_channels: [256, 512, 1024, 2048]
+      out_channels: 256
+      num_outs: 4
+  
+  # heads 配置
+  heads:
+    object:
+      type: TransFusionHead
+      num_proposals: 200
+      attention: true
+      hidden_channel: 128
+      num_classes: 10
+      num_decoder_layers: 3
+      num_heads: 8
+      learnable_querying: true
+      dropout: 0.1
+      activation: relu
+      norm_cfg:
+        type: LN
+      init_cfg:
+        - type: Normal
+          layer: Linear
+          std: 0.02
+        - type: Xavier
+          layer: Conv2d
+          distribution: uniform
+      train_cfg:
+        dataset: nuscenes
+        grid_size: [1440, 1440, 41]
+        num_proposals: 200
+        point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+        voxel_size: [0.075, 0.075, 0.2]
+      test_cfg:
+        dataset: nuscenes
+        grid_size: [1440, 1440, 41]
+        num_proposals: 200
+        point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+        voxel_size: [0.075, 0.075, 0.2]
 
 # ========== 数据增强 ==========
 # 针对小目标的 Copy-Paste 增强
@@ -30,16 +106,8 @@ data:
     pipeline:
       - type: CopyPaste3D
         classes: ['pedestrian', 'motorcycle', 'bicycle', 'traffic_cone']
-        max_num_pasted: 15  # 增加小目标样本
+        max_num_pasted: 15
         paste_probability: 0.7
-
-# ========== 检测头配置 ==========
-# 增加 proposals 数量，提升小目标覆盖率
-model:
-  heads:
-    object:
-      train_cfg:
-        num_proposals: 200  # 从 128 增加到 200
 
 # ========== 预期提升 ==========
 # 基线：mAP 0.308, NDS 0.374

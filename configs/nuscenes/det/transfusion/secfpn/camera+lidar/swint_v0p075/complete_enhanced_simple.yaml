@@ -1,0 +1,123 @@
+# 完整增强版配置文件 - 精简版
+# 启用了 SEBlock 和 CBAM 注意力机制
+# 基于原版 convfuser.yaml 修改
+
+voxel_size: [0.075, 0.075, 0.2]
+point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+
+model:
+  type: BEVFusion
+  use_grid_mask: true
+  
+  encoders:
+    camera:
+      backbone:
+        type: SwinTransformer
+        embed_dims: 96
+        depths: [2, 2, 6, 2]
+        num_heads: [3, 6, 12, 24]
+        window_size: 7
+        mlp_ratio: 4
+        qkv_bias: true
+        qk_scale: null
+        drop_rate: 0.0
+        attn_drop_rate: 0.0
+        drop_path_rate: 0.2
+        patch_norm: true
+        out_indices: [1, 2, 3]
+        with_cp: false
+        convert_weights: true
+        init_cfg:
+          type: Pretrained
+          checkpoint: https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_tiny_patch4_window7_224.pth
+      neck:
+        type: GeneralizedLSSFPN
+        in_channels: [192, 384, 768]
+        out_channels: 256
+        start_level: 0
+        num_outs: 3
+        norm_cfg:
+          type: GN
+          num_groups: 32
+          requires_grad: true
+      vtransform:
+        type: DepthLSSTransform
+        in_channels: 256
+        out_channels: 80
+        image_size: [256, 704]
+        feature_size: [32, 88]
+        xbound: [-54.0, 54.0, 0.3]
+        ybound: [-54.0, 54.0, 0.3]
+        zbound: [-10.0, 10.0, 20.0]
+        dbound: [1.0, 60.0, 0.5]
+        downsample: 2
+        depth_input: scalar
+        add_depth_features: false
+        height_expand: true
+        use_attention: true
+        
+    lidar:
+      voxelize:
+        voxel_size: [0.075, 0.075, 0.2]
+        point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+        max_voxels: [120000, 160000]
+        max_num_points: 10
+      backbone:
+        type: SparseEncoder
+        in_channels: 5
+        sparse_shape: [1440, 1440, 41]
+        output_channels: 128
+        encoder_channels: [[16, 16, 32], [32, 32, 64], [64, 64, 128], [128, 128]]
+        encoder_paddings: [[0, 0, 1], [0, 0, 1], [0, 0, [1, 1, 0]], [0, 0]]
+        block_type: basicblock
+        use_cbam: true
+        cbam_ratio: 16
+
+  fuser:
+    type: MultiScaleConvFuser
+    in_channels: [80, 256]
+    out_channels: 256
+    attention_ratio: 16
+
+  decoder:
+    backbone:
+      type: SECOND
+      in_channels: 256
+      out_channels: [128, 256]
+      layer_nums: [5, 5]
+      layer_strides: [1, 2]
+      norm_cfg:
+        type: BN
+        eps: 0.001
+        momentum: 0.01
+        requires_grad: true
+    neck:
+      type: SECONDFPN
+      in_channels: [128, 256]
+      out_channels: [256, 256]
+      upsample_strides: [1, 2]
+      norm_cfg:
+        type: BN
+        eps: 0.001
+        momentum: 0.01
+        requires_grad: true
+
+  heads:
+    object:
+      type: TransFusionHead
+      in_channels: 512
+      hidden_channel: 128
+      num_classes: 10
+      num_proposals: 200
+      num_decoder_layers: 1
+      num_heads: 8
+      ffn_channel: 256
+      dropout: 0.1
+      common_stride: 8
+      use_bias: true
+      train_cfg:
+        grid_size: [1440, 1440, 41]
+        out_size_factor: 8
+      test_cfg:
+        grid_size: [1440, 1440, 41]
+        out_size_factor: 8

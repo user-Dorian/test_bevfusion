@@ -16,5 +16,6 @@ model:
         
     lidar:
       backbone:
-        use_cbam: true  # 启用 CBAM
-        cbam_ratio: 16
+        use_cbam: false  # ❌ 先禁用 CBAM（通道数不匹配）
+        # CBAM 需要适配 SparseEncoder 的输出通道
+        # 如果使用 CBAM，需要修改 cbam.py 以支持动态通道数

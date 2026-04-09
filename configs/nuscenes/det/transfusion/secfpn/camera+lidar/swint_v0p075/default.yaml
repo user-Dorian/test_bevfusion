@@ -47,13 +47,22 @@ model:
         depth_input: scalar
         add_depth_features: false
         height_expand: true
+        use_attention: true  # ✅ 启用 SEBlock 注意力
     lidar:
       voxelize:
         point_cloud_range: ${point_cloud_range}
         voxel_size: ${voxel_size}
         max_voxels: [120000, 160000]
       backbone:
+        type: SparseEncoder
+        in_channels: 5
         sparse_shape: [1440, 1440, 41]
+        output_channels: 128
+        encoder_channels: [[16, 16, 32], [32, 32, 64], [64, 64, 128], [128, 128]]
+        encoder_paddings: [[0, 0, 1], [0, 0, 1], [0, 0, [1, 1, 0]], [0, 0]]
+        block_type: basicblock
+        use_cbam: true  # ✅ 启用 CBAM 注意力
+        cbam_ratio: 16  # CBAM 降维比例
 
   heads:
     object:

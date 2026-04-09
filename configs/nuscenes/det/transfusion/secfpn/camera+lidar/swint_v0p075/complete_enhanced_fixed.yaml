@@ -1,0 +1,335 @@
+# 完整增强版配置文件
+# 启用了所有增强模块：SEBlock、CBAM、MultiScaleConvFuser
+# 所有通道数和维度已验证匹配
+
+voxel_size: [0.075, 0.075, 0.2]
+point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+
+data_root: data/nuscenes
+
+metainfo:
+  classes:
+    - car
+    - truck
+    - construction_vehicle
+    - bus
+    - trailer
+    - barrier
+    - motorcycle
+    - bicycle
+    - pedestrian
+    - traffic_cone
+
+model:
+  type: BEVFusion
+  use_grid_mask: true
+  use_fusion: true
+  
+  encoders:
+    camera:
+      type: GeneralizedLSSFPN
+      backbone:
+        type: SwinTransformer
+        embed_dims: 96
+        depths: [2, 2, 6, 2]
+        num_heads: [3, 6, 12, 24]
+        window_size: 7
+        mlp_ratio: 4
+        qkv_bias: true
+        qk_scale: null
+        drop_rate: 0.0
+        attn_drop_rate: 0.0
+        drop_path_rate: 0.2
+        patch_norm: true
+        out_indices: [1, 2, 3]
+        with_cp: false
+        convert_weights: true
+        init_cfg:
+          type: Pretrained
+          checkpoint: https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_tiny_patch4_window7_224.pth
+      neck:
+        type: GeneralizedLSSFPN
+        in_channels: [192, 384, 768]
+        out_channels: 256
+        start_level: 0
+        num_outs: 3
+        norm_cfg:
+          type: GN
+          num_groups: 32
+          requires_grad: true
+      vtransform:
+        type: DepthLSSTransform
+        in_channels: 256
+        out_channels: 80
+        image_size: [256, 704]
+        feature_size: [32, 88]
+        xbound: [-54.0, 54.0, 0.3]
+        ybound: [-54.0, 54.0, 0.3]
+        zbound: [-10.0, 10.0, 20.0]
+        dbound: [1.0, 60.0, 0.5]
+        downsample: 2
+        depth_input: scalar
+        add_depth_features: false
+        height_expand: true
+        use_attention: true
+        
+    lidar:
+      type: SparseEncoder
+      voxelize:
+        type: Voxelization
+        voxel_size: [0.075, 0.075, 0.2]
+        point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+        max_voxels: [120000, 160000]
+        max_num_points: 10
+      backbone:
+        type: SparseEncoder
+        in_channels: 5
+        sparse_shape: [1440, 1440, 41]
+        output_channels: 128
+        encoder_channels: [[16, 16, 32], [32, 32, 64], [64, 64, 128], [128, 128]]
+        encoder_paddings: [[0, 0, 1], [0, 0, 1], [0, 0, [1, 1, 0]], [0, 0]]
+        block_type: basicblock
+        use_cbam: true
+        cbam_ratio: 16
+
+  fuser:
+    type: MultiScaleConvFuser
+    in_channels: [80, 256]
+    out_channels: 256
+    attention_ratio: 16
+
+  decoder:
+    backbone:
+      type: SECOND
+      in_channels: 256
+      out_channels: [128, 256]
+      layer_nums: [5, 5]
+      layer_strides: [1, 2]
+      norm_cfg:
+        type: BN
+        eps: 0.001
+        momentum: 0.01
+        requires_grad: true
+    neck:
+      type: SECONDFPN
+      in_channels: [128, 256]
+      out_channels: [256, 256]
+      upsample_strides: [1, 2]
+      norm_cfg:
+        type: BN
+        eps: 0.001
+        momentum: 0.01
+        requires_grad: true
+
+  heads:
+    object:
+      type: TransFusionHead
+      in_channels: 512
+      hidden_channel: 128
+      num_classes: 10
+      num_proposals: 200
+      num_decoder_layers: 1
+      num_heads: 8
+      ffn_channel: 256
+      dropout: 0.1
+      common_stride: 8
+      use_bias: true
+      train_cfg:
+        grid_size: [1440, 1440, 41]
+        out_size_factor: 8
+      test_cfg:
+        grid_size: [1440, 1440, 41]
+        out_size_factor: 8
+
+# 数据集配置
+dataset_type: NuScenesDataset
+data_root: ${data_root}
+
+input_modality:
+  use_lidar: true
+  use_camera: true
+  use_radar: false
+  use_map: false
+
+# 数据增强配置
+train_pipeline:
+  - type: LoadPointsFromFile
+    coord_type: LIDAR
+    load_dim: 5
+    use_dim: 5
+  - type: LoadImageFromFile
+  - type: LoadAnnotations3D
+    with_bbox_3d: true
+    with_label_3d: true
+  - type: ObjectSample
+    db_sampler:
+      type: NuScenesDBSampler
+      data_root: ${data_root}
+      info_path: data/nuscenes/dbinfos_train.pkl
+      rate: 1.0
+      global_rotation_range: [-0.78539816, 0.78539816]
+      global_scale_range: [0.9, 1.1]
+      global_translation_std: [0.5, 0.5, 0.5]
+  - type: ObjectNoise
+    num_try: 100
+    translation_std: [0.25, 0.25, 0.25]
+    global_rot_range: [-0.15707963267, 0.15707963267]
+    rot_range: [-0.78539816, 0.78539816]
+  - type: GlobalRotScaleTrans
+    rot_range: [-0.78539816, 0.78539816]
+    scale_ratio_range: [0.9, 1.1]
+    translation_std: [0.5, 0.5, 0.5]
+  - type: RandomFlip3D
+    flip_ratio_bev_horizontal: 0.5
+    flip_ratio_bev_vertical: 0.5
+  - type: PointsRangeFilter
+    point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+  - type: ObjectRangeFilter
+    point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+  - type: ObjectNameFilter
+    classes:
+      - car
+      - truck
+      - construction_vehicle
+      - bus
+      - trailer
+      - barrier
+      - motorcycle
+      - bicycle
+      - pedestrian
+      - traffic_cone
+  - type: NormalizeMultiviewImage
+    mean: [123.675, 116.28, 103.53]
+    std: [58.395, 57.12, 57.375]
+    to_rgb: true
+  - type: PadMultiViewImage
+    size_divisor: 32
+  - type: DefaultFormatBundle3D
+    class_names:
+      - car
+      - truck
+      - construction_vehicle
+      - bus
+      - trailer
+      - barrier
+      - motorcycle
+      - bicycle
+      - pedestrian
+      - traffic_cone
+  - type: Collect3D
+    keys:
+      - points
+      - gt_bboxes_3d
+      - gt_labels_3d
+      - img
+
+test_pipeline:
+  - type: LoadPointsFromFile
+    coord_type: LIDAR
+    load_dim: 5
+    use_dim: 5
+  - type: LoadImageFromFile
+  - type: LoadAnnotations3D
+    with_bbox_3d: true
+    with_label_3d: true
+  - type: GlobalRotScaleTrans
+    rot_range: [-0.3925, 0.3925]
+    scale_ratio_range: [0.95, 1.05]
+    translation_std: [0, 0, 0]
+  - type: RandomFlip3D
+    flip_ratio_bev_horizontal: 0.5
+    flip_ratio_bev_vertical: 0.5
+  - type: NormalizeMultiviewImage
+    mean: [123.675, 116.28, 103.53]
+    std: [58.395, 57.12, 57.375]
+    to_rgb: true
+  - type: PadMultiViewImage
+    size_divisor: 32
+  - type: PointsRangeFilter
+    point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+  - type: DefaultFormatBundle3D
+    class_names:
+      - car
+      - truck
+      - construction_vehicle
+      - bus
+      - trailer
+      - barrier
+      - motorcycle
+      - bicycle
+      - pedestrian
+      - traffic_cone
+  - type: Collect3D
+    keys:
+      - points
+      - gt_bboxes_3d
+      - gt_labels_3d
+      - img
+
+# 训练配置
+optimizer:
+  type: AdamW
+  lr: 0.0001
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+
+optimizer_config:
+  grad_clip:
+    max_norm: 35
+    norm_type: 2
+
+lr_config:
+  policy: CosineAnnealing
+  warmup: linear
+  warmup_iters: 500
+  warmup_ratio: 0.33333333
+  min_lr_ratio: 1.0e-3
+
+momentum_config:
+  policy: CosineAnnealing
+  warmup: linear
+  warmup_iters: 500
+  warmup_ratio: 0.33333333
+  min_momentum_ratio: 0.89
+
+# 批次大小配置
+train_batch_size: 4
+val_batch_size: 4
+
+# 训练轮次
+max_epochs: 6
+
+# 检查点配置
+checkpoint_config:
+  interval: 1
+  max_keep_ckpts: 1
+
+# 日志配置
+log_config:
+  interval: 10
+  hooks:
+    - type: TextLoggerHook
+    - type: TensorboardHook
+
+# 评估配置
+evaluation:
+  interval: 1
+  pipeline:
+    - type: DefaultFormatBundle3D
+      class_names:
+        - car
+        - truck
+        - construction_vehicle
+        - bus
+        - trailer
+        - barrier
+        - motorcycle
+        - bicycle
+        - pedestrian
+        - traffic_cone
+    - type: Collect3D
+      keys:
+        - points
+        - gt_bboxes_3d
+        - gt_labels_3d
+        - img

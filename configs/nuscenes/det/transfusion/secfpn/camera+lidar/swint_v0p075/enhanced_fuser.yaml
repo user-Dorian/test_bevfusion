@@ -1,0 +1,20 @@
+# 完整增强版 - 基于原版 convfuser.yaml 的最小修改
+# 只修改 fuser 部分，启用 MultiScaleConvFuser
+# 其他配置继承自 default.yaml
+
+model:
+  fuser:
+    type: MultiScaleConvFuser
+    in_channels: [80, 256]
+    out_channels: 256
+    attention_ratio: 16
+  
+  encoders:
+    camera:
+      vtransform:
+        use_attention: true  # 启用 SEBlock
+        
+    lidar:
+      backbone:
+        use_cbam: true  # 启用 CBAM
+        cbam_ratio: 16
